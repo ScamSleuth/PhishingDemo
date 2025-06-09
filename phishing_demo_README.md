@@ -34,7 +34,7 @@ Always obtain informed consent when using this in simulations or demonstrations.
 
 ## 📁 Contents
 
-- `index.html` – The core simulation page with tracking and live logging
+- `phishing_demo.html` – The core simulation page with tracking and live logging
 - Inline JavaScript – Handles keylogging, input capture, validation, and activity logging
 - Visual alert banner – Warns visitors about the risks and context
 
