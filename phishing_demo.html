@@ -16,13 +16,18 @@
       border: 2px solid #f5c6cb;
       padding: 1em;
       font-size: 0.95em;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
     #warningBanner ul {
       margin-top: 0.5em;
       margin-bottom: 0.5em;
       padding-left: 1.2em;
+    }
+
+    #warningBanner a {
+      color: #a94442;
+      text-decoration: underline;
     }
 
     form {
@@ -71,7 +76,11 @@
 </head>
 <body>
   <div id="warningBanner">
-    ⚠️ <strong>This is a phishing simulation demo.</strong> All data you type is logged <em>live</em>, even if you delete or change it.
+    ⚠️ <strong>This is a phishing simulation demo for educational and awareness purposes only.</strong>
+    <br><br>
+    🔒 <strong>DO NOT enter real credit card numbers, personal information, or any sensitive data.</strong><br>
+    If you'd like to test this proof-of-concept safely, use generated fake card data from tools like
+    <a href="https://www.lambdatest.com/free-online-tools/credit-card-number-generator" target="_blank">LambdaTest Credit Card Generator</a> or other testing resources.
     <br><br>
     In a real attack, scammers could capture:
     <ul>
