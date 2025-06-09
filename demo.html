@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phishing Simulation Demo</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding-right: 420px;
+    }
+
+    #warningBanner {
+      background: #ffecec;
+      color: #a94442;
+      border: 2px solid #f5c6cb;
+      padding: 1em;
+      font-size: 0.95em;
+      line-height: 1.4;
+    }
+
+    #warningBanner ul {
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
+      padding-left: 1.2em;
+    }
+
+    form {
+      padding: 2em;
+      max-width: 500px;
+    }
+
+    #logPanel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 400px;
+      height: 100vh;
+      overflow-y: auto;
+      background: #f9f9f9;
+      border-left: 1px solid #ccc;
+      padding: 1em;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    #logPanel h3 {
+      margin-top: 0;
+    }
+
+    #logPanel pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 0.85em;
+      background: #fff;
+      padding: 0.5em;
+      border-radius: 4px;
+    }
+
+    .info-message {
+      font-size: 0.9em;
+      margin-top: 4px;
+      padding: 0.3em 0.5em;
+      border-radius: 4px;
+    }
+
+    .info-message.valid { background: #d4edda; color: #155724; }
+    .info-message.invalid { background: #f8d7da; color: #721c24; }
+    .info-message.incomplete { background: #fff3cd; color: #856404; }
+  </style>
+</head>
+<body>
+  <div id="warningBanner">
+    ⚠️ <strong>This is a phishing simulation demo.</strong> All data you type is logged <em>live</em>, even if you delete or change it.
+    <br><br>
+    In a real attack, scammers could capture:
+    <ul>
+      <li>Full credit card details (number, CVV, expiration date)</li>
+      <li>Name on card and other autofilled personal info</li>
+      <li>Every typed keystroke, even if corrected</li>
+      <li>Browser autofill data without clicking submit</li>
+      <li>Your behavior — typing speed, edits, and input history</li>
+    </ul>
+    <strong>Never trust unknown websites that ask for personal or payment data.</strong>
+  </div>
+
+  <h2>Simulated Payment Form</h2>
+  <form id="paymentForm" autocomplete="on">
+    <label>
+      Name on Card:
+      <input type="text" name="ccname" autocomplete="cc-name">
+    </label>
+    <br><br>
+    <label>
+      Credit Card Number:
+      <input type="text" name="ccnumber" autocomplete="cc-number">
+      <div id="ccFeedback" class="info-message incomplete">Credit card information is incomplete.</div>
+    </label>
+    <br><br>
+    <label>
+      Expiration Date:
+      <select name="ccmonth" autocomplete="cc-exp-month">
+        <option value="">Month</option>
+        <option value="01">01 - Jan</option>
+        <option value="02">02 - Feb</option>
+        <option value="03">03 - Mar</option>
+        <option value="04">04 - Apr</option>
+        <option value="05">05 - May</option>
+        <option value="06">06 - Jun</option>
+        <option value="07">07 - Jul</option>
+        <option value="08">08 - Aug</option>
+        <option value="09">09 - Sep</option>
+        <option value="10">10 - Oct</option>
+        <option value="11">11 - Nov</option>
+        <option value="12">12 - Dec</option>
+      </select>
+
+      <select name="ccyear" autocomplete="cc-exp-year">
+        <option value="">Year</option>
+        <option value="2025">2025</option>
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+        <option value="2029">2029</option>
+        <option value="2030">2030</option>
+      </select>
+    </label>
+    <br><br>
+    <label>
+      CCV:
+      <input type="text" name="cccvv" autocomplete="cc-csc" maxlength="3" inputmode="numeric" pattern="\d*">
+    </label>
+    <br><br>
+    <button type="submit">Pay Now</button>
+  </form>
+
+  <div id="logPanel">
+    <h3>📋 Captured Activity Log</h3>
+    <pre id="logContent">Waiting for input...</pre>
+  </div>
+
+  <script>
+    const autofillData = {};
+    const actionLog = [];
+    const previousValues = {};
+
+    function getTimestamp() {
+      const now = new Date();
+      return now.toLocaleTimeString('en-GB', { hour12: false }) + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    }
+
+    function validateLuhn(number) {
+      const digits = number.replace(/\D/g, '').split('').reverse().map(d => parseInt(d));
+      let sum = 0;
+      for (let i = 0; i < digits.length; i++) {
+        let digit = digits[i];
+        if (i % 2 === 1) {
+          digit *= 2;
+          if (digit > 9) digit -= 9;
+        }
+        sum += digit;
+      }
+      return sum % 10 === 0;
+    }
+
+    function detectCardType(number) {
+      number = number.replace(/\D/g, '');
+      if (/^4/.test(number)) return "VISA";
+      if (/^5[1-5]/.test(number)) return "MasterCard";
+      if (/^3[47]/.test(number)) return "American Express";
+      if (/^6(?:011|5)/.test(number)) return "Discover";
+      return "Unknown";
+    }
+
+    function updateFeedback() {
+      const ccInput = document.querySelector('input[name="ccnumber"]');
+      const ccFeedback = document.getElementById('ccFeedback');
+      const raw = ccInput.value.replace(/\D/g, '');
+
+      if (raw.length < 13) {
+        ccFeedback.textContent = "Credit card information is incomplete.";
+        ccFeedback.className = "info-message incomplete";
+        return;
+      }
+
+      const valid = validateLuhn(raw);
+      const brand = detectCardType(raw);
+
+      if (!valid) {
+        ccFeedback.textContent = `Detected: ${brand} — Credit card number is invalid.`;
+        ccFeedback.className = "info-message invalid";
+      } else {
+        ccFeedback.textContent = `Detected: ${brand} — Credit card number is valid.`;
+        ccFeedback.className = "info-message valid";
+      }
+    }
+
+    function updateLog() {
+      let logText = '';
+
+      if (Object.keys(autofillData).length) {
+        logText += `Autofill Data:\n${JSON.stringify(autofillData, null, 2)}\n\n`;
+      }
+
+      actionLog.forEach(entry => {
+        if (entry.type === 'keypress') {
+          logText += `[${entry.time}] [${entry.field}] Key: ${entry.key}\n`;
+        } else if (entry.type === 'paste') {
+          logText += `[${entry.time}] [${entry.field}] PASTE: "${entry.content}"\n`;
+        } else if (entry.type === 'change') {
+          logText += `[${entry.time}] [${entry.field}] CHANGED from "${entry.from}" to "${entry.to}"\n`;
+        }
+      });
+
+      logText += `\nCurrent field values:\n`;
+      document.querySelectorAll('input, select').forEach(input => {
+        logText += `[current ${input.name} field:] ${input.value}\n`;
+      });
+
+      document.getElementById('logContent').textContent = logText;
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.querySelectorAll('input, select').forEach(input => {
+          previousValues[input.name] = input.value || '';
+          if (input.value) {
+            autofillData[input.name] = input.value;
+          }
+        });
+        updateLog();
+        updateFeedback();
+      }, 1000);
+    });
+
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('keydown', e => {
+        actionLog.push({ time: getTimestamp(), field: input.name, type: 'keypress', key: e.key });
+      });
+
+      input.addEventListener('paste', e => {
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        actionLog.push({ time: getTimestamp(), field: input.name, type: 'paste', content: pasted });
+      });
+
+      input.addEventListener('input', () => {
+        const newValue = input.value;
+        const oldValue = previousValues[input.name];
+        if (newValue !== oldValue) {
+          actionLog.push({ time: getTimestamp(), field: input.name, type: 'change', from: oldValue, to: newValue });
+          previousValues[input.name] = newValue;
+          updateLog();
+          if (input.name === "ccnumber") updateFeedback();
+        }
+      });
+    });
+
+    document.querySelectorAll('select').forEach(select => {
+      select.addEventListener('change', () => {
+        const newValue = select.value;
+        const oldValue = previousValues[select.name] || '';
+        if (newValue !== oldValue) {
+          actionLog.push({ time: getTimestamp(), field: select.name, type: 'change', from: oldValue, to: newValue });
+          previousValues[select.name] = newValue;
+          updateLog();
+        }
+      });
+    });
+
+    document.getElementById('paymentForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const ccname = document.querySelector('input[name="ccname"]').value;
+      const ccnumber = document.querySelector('input[name="ccnumber"]').value;
+      const ccmonth = document.querySelector('select[name="ccmonth"]').value;
+      const ccyear = document.querySelector('select[name="ccyear"]').value;
+      const cccvv = document.querySelector('input[name="cccvv"]').value;
+
+      const summary = `📤 Sent Payment Data:\n\nName: ${ccname}\nCard: ${ccnumber}\nExpiration: ${ccmonth}/${ccyear}\nCCV: ${cccvv}`;
+      document.getElementById('logContent').textContent = summary;
+    });
+  </script>
+</body>
+</html>
